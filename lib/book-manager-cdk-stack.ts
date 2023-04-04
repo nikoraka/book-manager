@@ -1,4 +1,4 @@
-import * as cdk from 'aws-cdk-lib';
+import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
@@ -7,7 +7,7 @@ import * as path from 'path'
 
 export class BookManagerCdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+    super(scope, id, props)
 
     // Create DynamoDB table
     const booksCatalogTable = new dynamodb.Table(
@@ -21,7 +21,7 @@ export class BookManagerCdkStack extends cdk.Stack {
         },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
       }
-    );
+    )
    
     /*
       Create Lambda to Put Items to Dynamodb Table
@@ -124,5 +124,5 @@ function createLambdaStack(scope: Construct, tableName: string, option: string):
 }
 
 function capitalizeFirstLetter(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
