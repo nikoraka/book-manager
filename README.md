@@ -25,10 +25,14 @@ This is a CDK App that creates a REST API, a DynamoDB table and 5 Lambda functio
    "releaseDate": "<release date of the book>",
 }
 ```
-* In your terminal, execute bellow command:
+* In your terminal, execute below command:
 ```console
 curl -X POST -H "Content-Type: application/json" -d '{ "isbn": "1", "name": "Robinson Crusoe", "authors": "Jules Verne", "languages": "French", "countries": "France", "numberOfPages": "100", "releaseDate": "1719"}' https://rest-api-id.execute-api.aws-region.amazonaws.com/prod/book --tlsv1.2 --header 'Accept: */*' --header 'Authorization: allow'
-``` 
+```
+* To retrieve the items registered in DynamoDB table, execute below command:
+```console
+curl -v https://rest-api-id.execute-api.aws-region.amazonaws.com/prod/book --tlsv1.2
+```
 
 ## Useful commands
 
