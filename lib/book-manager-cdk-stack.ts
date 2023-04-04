@@ -23,34 +23,109 @@ export class BookManagerCdkStack extends cdk.Stack {
       }
     );
 
-    // Create Lambda to access DynamoDB Database
-    const bookCatalogManager = new lambda.Function(this, 'BookCatalogManager', {
+    // Create Lambda to Put Item to DynamoDB Table
+    const putItemLambda = new lambda.Function(this, 'PutItemLambda', {
       runtime: lambda.Runtime.NODEJS_16_X,
-      functionName: 'book-catalog-manager',
+      functionName: 'put-item-function',
       description: 'Supports CRUD operations for a book catalog',
-      code: lambda.Code.fromAsset(path.join(__dirname, 'function')),
+      code: lambda.Code.fromAsset(path.join(__dirname, 'functions/put-item')),
       handler: 'index.handler',
       environment: {
         DYNAMODB_TABLE_NAME: booksCatalogTable.tableName
       }
     });
     
-    // Allow Lambda to access DynamoDB table with Read/Write rights
-    booksCatalogTable.grantReadWriteData(bookCatalogManager)
+    booksCatalogTable.grant(putItemLambda, 'dynamodb:BatchWriteItem', 'dynamodb:PutItem', 'dynamodb:DescribeTable')
 
-    const api = new apigateway.RestApi(this, 'CRUDRestApi', {
+    // Create Lambda to access DynamoDB Database
+    const deleteItemLambda = new lambda.Function(this, 'DeleteItemLambda', {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      functionName: 'delete-item-function',
+      description: 'Supports CRUD operations for a book catalog',
+      code: lambda.Code.fromAsset(path.join(__dirname, 'functions/delete-item')),
+      handler: 'index.handler',
+      environment: {
+        DYNAMODB_TABLE_NAME: booksCatalogTable.tableName
+      }
+    });
+
+    // Create Lambda to access DynamoDB Database
+    const updateItemLambda = new lambda.Function(this, 'UpdateItemLambda', {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      functionName: 'update-item-function',
+      description: 'Supports CRUD operations for a book catalog',
+      code: lambda.Code.fromAsset(path.join(__dirname, 'functions/update-item')),
+      handler: 'index.handler',
+      environment: {
+        DYNAMODB_TABLE_NAME: booksCatalogTable.tableName
+      }
+    });
+
+    const queryItemLambda = new lambda.Function(this, 'QueryItemLambda', {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      functionName: 'query-item-function',
+      description: 'Supports CRUD operations for a book catalog',
+      code: lambda.Code.fromAsset(path.join(__dirname, 'functions/query-item')),
+      handler: 'index.handler',
+      environment: {
+        DYNAMODB_TABLE_NAME: booksCatalogTable.tableName
+    }
+    });
+
+    // Allow Lambda to access DynamoDB table with Read/Write rights
+    booksCatalogTable.grantReadData(queryItemLambda)
+    booksCatalogTable.grant(putItemLambda, 'dynamodb:BatchWriteItem', 'dynamodb:PutItem', 'dynamodb:DescribeTable')
+    booksCatalogTable.grant(deleteItemLambda, 'dynamodb:DeleteItem', 'dynamodb:DescribeTable')
+    booksCatalogTable.grant(updateItemLambda,'dynamodb:BatchWriteItem', 'dynamodb:DescribeTable', 'dynamodb:UpdateItem')
+
+    const restApi = new apigateway.RestApi(this, 'CRUDRestApi', {
       restApiName: 'book-crud-api',
-      description: 'book-crud-api',
+      description: 'REST API supporting CRUD operations for a book catalog',
       deploy: true
     })
-
-    const bookResource = api.root.addResource('book')
-    bookResource.addMethod('POST', new apigateway.LambdaIntegration(bookCatalogManager), {
-      apiKeyRequired: false
+    // Custom Lambda authoriser. Token needs to be retrieved from a Third Party App
+    const lambdaAuth = new lambda.Function( this, 'my-lambda-authoriser',{
+      runtime: lambda.Runtime.NODEJS_14_X,
+      functionName: 'book-catalog-authorizer',
+      timeout: cdk.Duration.seconds(15),
+      code: lambda.Code.fromAsset(path.join(__dirname,'functions/authorizer')),
+      handler: "index.handler",
     })
 
-    bookResource.addMethod('GET', new apigateway.LambdaIntegration(bookCatalogManager), {
-      apiKeyRequired: false
-    });
+    const authorizer = new apigateway.TokenAuthorizer(
+        this,
+        `my-lambda-authorizer`, {
+          handler: lambdaAuth
+        }
+    )
+    const bookResource = restApi.root.addResource('book')   
+
+    bookResource.addMethod('POST', new apigateway.LambdaIntegration(putItemLambda), {
+      apiKeyRequired: false,
+      authorizer
+    })    
+
+    bookResource.addMethod('DELETE', new apigateway.LambdaIntegration(deleteItemLambda), {
+      apiKeyRequired: false,
+      authorizer
+    })
+
+    bookResource.addMethod('GET', new apigateway.LambdaIntegration(queryItemLambda), {
+      apiKeyRequired: false,
+      requestParameters: {
+        "method.request.querystring.isbn": true,
+        "method.request.querystring.authors": true,
+        "method.request.querystring.countries": true,
+        "method.request.querystring.languages": true,
+        "method.request.querystring.name": true,
+        "method.request.querystring.numberOfPages": true,
+        "method.request.querystring.releaseDate": true
+      }
+    })
+
+    bookResource.addMethod('PUT', new apigateway.LambdaIntegration(updateItemLambda), {
+      apiKeyRequired: false,
+      authorizer
+    })
   }
 }
